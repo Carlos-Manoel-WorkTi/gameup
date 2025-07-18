@@ -1,182 +1,100 @@
 
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Users, Plus, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GameHeader } from "@/components/GameHeader";
-import { useGameSocket } from "@/hooks/useGameSocket";
-import { toast } from "@/hooks/use-toast";
+import { useUser } from "@/contexts/UserContext";
 
 export default function JoinRoom() {
-  const { gameId } = useParams();
-  const navigate = useNavigate();
-  const { createRoom, joinRoom } = useGameSocket();
-  
-  const [nickname, setNickname] = useState("");
   const [roomCode, setRoomCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const navigate = useNavigate();
+  const { gameId } = useParams();
+  const { user } = useUser();
 
-  const handleCreateRoom = async () => {
-    if (!nickname.trim()) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Digite seu nickname para criar uma sala",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleCreateRoom = () => {
+    setIsCreating(true);
+    // Simulate room creation
+    setTimeout(() => {
+      const newRoomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+      navigate(`/game/${gameId}/lobby/${newRoomCode}`);
+      setIsCreating(false);
+    }, 1000);
+  };
 
-    setLoading(true);
-    try {
-      const code = createRoom(nickname.trim());
-      navigate(`/game/${gameId}/lobby/${code}`, { 
-        state: { nickname: nickname.trim(), isHost: true } 
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a sala",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
+  const handleJoinRoom = () => {
+    if (roomCode.trim()) {
+      navigate(`/game/${gameId}/lobby/${roomCode.toUpperCase()}`);
     }
   };
 
-  const handleJoinRoom = async () => {
-    if (!nickname.trim()) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Digite seu nickname para entrar na sala",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!roomCode.trim()) {
-      toast({
-        title: "Código obrigatório",
-        description: "Digite o código da sala",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const success = joinRoom(roomCode.trim().toUpperCase(), nickname.trim());
-      if (success) {
-        navigate(`/game/${gameId}/lobby/${roomCode.trim().toUpperCase()}`, { 
-          state: { nickname: nickname.trim(), isHost: false } 
-        });
-      } else {
-        toast({
-          title: "Sala não encontrada",
-          description: "Verifique o código e tente novamente",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível entrar na sala",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleBack = () => {
+    navigate('/');
   };
-
-  const gameName = gameId === 'roda-a-roda' ? 'Roda a Roda Jequiti' : 'Jogo';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <GameHeader 
-        title={gameName}
+        title="Roda a Roda Jequiti" 
         showBackButton 
-        onBack={() => navigate('/')} 
+        onBack={handleBack}
       />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-md mx-auto space-y-6">
-          {/* Nickname Input */}
-          <Card className="bg-slate-800 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Seu Nickname
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Como você gostaria de ser chamado?
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="text"
-                placeholder="Digite seu nickname..."
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                maxLength={20}
-              />
-            </CardContent>
-          </Card>
+      <main className="container mx-auto px-4 py-12">
+        <div className="max-w-md mx-auto">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-700">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Bem-vindo, {user?.nickname}!
+              </h2>
+              <p className="text-slate-400">
+                Crie uma nova sala ou entre em uma existente
+              </p>
+            </div>
 
-          {/* Create Room */}
-          <Card className="bg-slate-800 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <Plus className="w-5 h-5" />
-                Criar Nova Sala
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Crie uma sala e convide um amigo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={handleCreateRoom}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Criar Sala
-              </Button>
-            </CardContent>
-          </Card>
+            <div className="space-y-6">
+              {/* Create Room */}
+              <div className="text-center">
+                <Button
+                  onClick={handleCreateRoom}
+                  disabled={isCreating}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-semibold"
+                >
+                  {isCreating ? "Criando Sala..." : "Criar Nova Sala"}
+                </Button>
+              </div>
 
-          {/* Join Room */}
-          <Card className="bg-slate-800 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                <LogIn className="w-5 h-5" />
-                Entrar em Sala
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Digite o código da sala que você recebeu
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                type="text"
-                placeholder="Código da sala (6 caracteres)"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                maxLength={6}
-              />
-              <Button
-                onClick={handleJoinRoom}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
-              >
-                <LogIn className="w-4 h-4 mr-2" />
-                Entrar na Sala
-              </Button>
-            </CardContent>
-          </Card>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-4 bg-slate-800/50 text-slate-400">ou</span>
+                </div>
+              </div>
+
+              {/* Join Room */}
+              <div className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Código da Sala (6 caracteres)"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  className="bg-slate-700 border-slate-600 text-white text-center text-lg tracking-widest placeholder-slate-400 focus:border-purple-500"
+                />
+                <Button
+                  onClick={handleJoinRoom}
+                  disabled={roomCode.length !== 6}
+                  variant="outline"
+                  className="w-full border-slate-600 text-white hover:bg-slate-700 py-6 text-lg font-semibold"
+                >
+                  Entrar na Sala
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

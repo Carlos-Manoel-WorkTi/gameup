@@ -4,7 +4,9 @@ import { Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { GameCard } from "@/components/GameCard";
-import { GameHeader } from "@/components/GameHeader";
+import { ProfileGuard } from "@/components/ProfileGuard";
+import { ProfileDialog } from "@/components/ProfileDialog";
+import { useUser } from "@/contexts/UserContext";
 
 const GAMES = [
   {
@@ -17,20 +19,24 @@ const GAMES = [
 
 export default function Home() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
   const navigate = useNavigate();
+  const { hasProfile } = useUser();
 
   const filteredGames = GAMES.filter(game =>
     game.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handlePlayGame = (gameId: string) => {
+    if (!hasProfile) {
+      setShowCreateProfile(true);
+      return;
+    }
     navigate(`/game/${gameId}/join`);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <GameHeader title="GameUp" />
-      
+    <ProfileGuard>
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="text-center mb-12">
@@ -76,6 +82,11 @@ export default function Home() {
           </div>
         )}
       </main>
-    </div>
+
+      <ProfileDialog 
+        open={showCreateProfile} 
+        onOpenChange={setShowCreateProfile}
+      />
+    </ProfileGuard>
   );
 }

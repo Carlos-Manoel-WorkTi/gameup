@@ -1,8 +1,6 @@
 
 import Home from "./Home";
 
-const Index = () => {
+export default function Index() {
   return <Home />;
-};
-
-export default Index;
+}

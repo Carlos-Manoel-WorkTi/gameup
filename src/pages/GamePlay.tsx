@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { Send, RotateCcw, Home } from "lucide-react";
+import { Send, RotateCcw, Home, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,12 +20,13 @@ export default function GamePlay() {
   
   const nickname = location.state?.nickname || '';
   const isHost = location.state?.isHost || false;
+  const isSolo = location.state?.isSolo || false;
   const gameState = roomState?.gameState;
   
   const isMyTurn = gameState?.currentPlayer === playerIndex;
   const isGameOver = gameState?.winner !== null;
   const winner = gameState?.winner;
-  const players = roomState?.players || [nickname, 'Adversário'];
+  const players = roomState?.players || [nickname, isSolo ? 'Computador' : 'Adversário'];
 
   const handleSubmitGuess = async () => {
     if (!guess.trim() || submitting || !isMyTurn || isGameOver) return;
@@ -60,7 +61,7 @@ export default function GamePlay() {
   const handleRematch = () => {
     resetGame();
     navigate(`/game/${gameId}/lobby/${roomCode}`, { 
-      state: { nickname, isHost } 
+      state: { nickname, isHost, isSolo } 
     });
   };
 
@@ -87,13 +88,15 @@ export default function GamePlay() {
   }
 
   const gameName = gameId === 'roda-a-roda' ? 'Roda a Roda Jequiti' : 'Jogo';
+  const currentPlayerName = players[gameState.currentPlayer];
+  const isComputerTurn = isSolo && gameState.currentPlayer === 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <GameHeader 
-        title={gameName}
+        title={`${gameName} ${isSolo ? '(Solo)' : ''}`}
         showBackButton 
-        onBack={() => navigate(`/game/${gameId}/lobby/${roomCode}`, { state: { nickname, isHost } })} 
+        onBack={() => navigate(`/game/${gameId}/lobby/${roomCode}`, { state: { nickname, isHost, isSolo } })} 
       />
       
       <main className="container mx-auto px-4 py-8">
@@ -146,13 +149,16 @@ export default function GamePlay() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="bg-slate-800 border-slate-600">
               <CardHeader>
-                <CardTitle className="text-white">Turno Atual</CardTitle>
+                <CardTitle className="text-white flex items-center gap-2">
+                  Turno Atual
+                  {isComputerTurn && <Bot className="w-5 h-5 text-orange-400" />}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={`text-lg font-medium p-3 rounded-lg ${
-                  isMyTurn ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300'
+                <div className={`text-lg font-medium p-3 rounded-lg flex items-center gap-2 ${
+                  isMyTurn ? 'bg-green-600 text-white' : isComputerTurn ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'
                 }`}>
-                  {isMyTurn ? '🟢 Sua vez!' : `⏳ Vez de ${players[gameState.currentPlayer]}`}
+                  {isMyTurn ? '🟢 Sua vez!' : isComputerTurn ? '🤖 Computador pensando...' : `⏳ Vez de ${currentPlayerName}`}
                 </div>
               </CardContent>
             </Card>
@@ -171,7 +177,7 @@ export default function GamePlay() {
           </div>
 
           {/* Input Area */}
-          {!isGameOver && (
+          {!isGameOver && !isComputerTurn && (
             <Card className="bg-slate-800 border-slate-600">
               <CardHeader>
                 <CardTitle className="text-white">Sua Tentativa</CardTitle>

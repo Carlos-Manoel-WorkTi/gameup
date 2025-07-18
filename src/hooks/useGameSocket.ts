@@ -10,6 +10,7 @@ interface GameState {
   guessedLetters: string[];
   wrongLetters: string[];
   winner: number | null;
+  isSoloMode: boolean;
 }
 
 interface RoomState {
@@ -17,6 +18,7 @@ interface RoomState {
   players: string[];
   host: number;
   gameState: GameState | null;
+  isSoloMode: boolean;
 }
 
 export function useGameSocket() {
@@ -28,13 +30,14 @@ export function useGameSocket() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   };
 
-  const createRoom = useCallback((nickname: string) => {
+  const createRoom = useCallback((nickname: string, isSolo: boolean = false) => {
     const code = generateRoomCode();
     const newRoom: RoomState = {
       code,
-      players: [nickname],
+      players: isSolo ? [nickname, 'Computador'] : [nickname],
       host: 0,
-      gameState: null
+      gameState: null,
+      isSoloMode: isSolo
     };
     setRoomState(newRoom);
     setPlayerIndex(0);
@@ -48,7 +51,8 @@ export function useGameSocket() {
       code,
       players: ['Jogador1', nickname], // Simula que já existe um jogador
       host: 0,
-      gameState: null
+      gameState: null,
+      isSoloMode: false
     };
     setRoomState(newRoom);
     setPlayerIndex(1);
@@ -59,7 +63,7 @@ export function useGameSocket() {
   const startGame = useCallback(() => {
     if (!roomState) return;
 
-    const words = ['BRASIL', 'FUTEBOL', 'PRAIA', 'CARNAVAL', 'SAMBA'];
+    const words = ['BRASIL', 'FUTEBOL', 'PRAIA', 'CARNAVAL', 'SAMBA', 'VIOLAO', 'FEIJOADA', 'CAPOEIRA'];
     const word = words[Math.floor(Math.random() * words.length)];
     
     const gameState: GameState = {
@@ -69,10 +73,34 @@ export function useGameSocket() {
       hiddenWord: word.replace(/[A-Z]/g, '_'),
       guessedLetters: [],
       wrongLetters: [],
-      winner: null
+      winner: null,
+      isSoloMode: roomState.isSoloMode
     };
 
     setRoomState(prev => prev ? { ...prev, gameState } : null);
+  }, [roomState]);
+
+  const makeComputerMove = useCallback(() => {
+    if (!roomState?.gameState || !roomState.gameState.isSoloMode) return;
+
+    const { gameState } = roomState;
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const usedLetters = [...gameState.guessedLetters, ...gameState.wrongLetters];
+    const availableLetters = alphabet.split('').filter(letter => !usedLetters.includes(letter));
+    
+    if (availableLetters.length === 0) return;
+
+    // Estratégia simples: escolher letras mais comuns primeiro
+    const commonLetters = ['A', 'E', 'I', 'O', 'U', 'R', 'S', 'T', 'L', 'N'];
+    let computerGuess = availableLetters.find(letter => commonLetters.includes(letter));
+    
+    if (!computerGuess) {
+      computerGuess = availableLetters[Math.floor(Math.random() * availableLetters.length)];
+    }
+
+    setTimeout(() => {
+      makeGuess(computerGuess!);
+    }, 1500); // Delay para simular "pensamento" do computador
   }, [roomState]);
 
   const makeGuess = useCallback((guess: string) => {
@@ -104,28 +132,41 @@ export function useGameSocket() {
         } : null);
       } else {
         // Errou a letra
+        const newCurrentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
         setRoomState(prev => prev ? {
           ...prev,
           gameState: {
             ...gameState,
             wrongLetters: [...gameState.wrongLetters, letter],
-            currentPlayer: gameState.currentPlayer === 0 ? 1 : 0
+            currentPlayer: newCurrentPlayer
           }
         } : null);
+
+        // Se é modo solo e agora é a vez do computador
+        if (gameState.isSoloMode && newCurrentPlayer === 1) {
+          setTimeout(() => makeComputerMove(), 1000);
+        }
       }
     } else {
       // Tentativa de palavra completa
       const isCorrect = guess.toUpperCase() === gameState.word;
+      const newCurrentPlayer = isCorrect ? gameState.currentPlayer : (gameState.currentPlayer === 0 ? 1 : 0);
+      
       setRoomState(prev => prev ? {
         ...prev,
         gameState: {
           ...gameState,
           winner: isCorrect ? gameState.currentPlayer : null,
-          currentPlayer: isCorrect ? gameState.currentPlayer : (gameState.currentPlayer === 0 ? 1 : 0)
+          currentPlayer: newCurrentPlayer
         }
       } : null);
+
+      // Se é modo solo e agora é a vez do computador
+      if (gameState.isSoloMode && newCurrentPlayer === 1 && !isCorrect) {
+        setTimeout(() => makeComputerMove(), 1000);
+      }
     }
-  }, [roomState]);
+  }, [roomState, makeComputerMove]);
 
   const resetGame = useCallback(() => {
     setRoomState(prev => prev ? { ...prev, gameState: null } : null);
@@ -136,6 +177,16 @@ export function useGameSocket() {
     setPlayerIndex(-1);
     setConnected(false);
   }, []);
+
+  // Trigger computer move when it's computer's turn
+  useEffect(() => {
+    if (roomState?.gameState?.isSoloMode && 
+        roomState.gameState.currentPlayer === 1 && 
+        !roomState.gameState.winner &&
+        roomState.gameState.gameStarted) {
+      makeComputerMove();
+    }
+  }, [roomState?.gameState?.currentPlayer, makeComputerMove]);
 
   return {
     connected,

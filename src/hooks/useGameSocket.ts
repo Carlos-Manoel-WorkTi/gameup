@@ -5,10 +5,9 @@ import { useState, useEffect, useCallback } from 'react';
 interface GameState {
   gameStarted: boolean;
   currentPlayer: number;
-  word: string;
-  hiddenWord: string;
-  guessedLetters: string[];
-  wrongLetters: string[];
+  words: string[];
+  revealedLetters: string[];
+  usedLetters: string[];
   winner: number | null;
   isSoloMode: boolean;
 }
@@ -63,16 +62,22 @@ export function useGameSocket() {
   const startGame = useCallback(() => {
     if (!roomState) return;
 
-    const words = ['BRASIL', 'FUTEBOL', 'PRAIA', 'CARNAVAL', 'SAMBA', 'VIOLAO', 'FEIJOADA', 'CAPOEIRA'];
-    const word = words[Math.floor(Math.random() * words.length)];
+    const wordPhrases = [
+      ['BRASIL', 'VERDE', 'AMARELO'],
+      ['FUTEBOL', 'PAIXAO', 'NACIONAL'],
+      ['PRAIA', 'SOL', 'MAR'],
+      ['CARNAVAL', 'FESTA', 'ALEGRIA'],
+      ['SAMBA', 'MUSICA', 'DANCA'],
+      ['FEIJOADA', 'COMIDA', 'TRADICIONAL']
+    ];
+    const selectedPhrase = wordPhrases[Math.floor(Math.random() * wordPhrases.length)];
     
     const gameState: GameState = {
       gameStarted: true,
       currentPlayer: 0,
-      word,
-      hiddenWord: word.replace(/[A-Z]/g, '_'),
-      guessedLetters: [],
-      wrongLetters: [],
+      words: selectedPhrase,
+      revealedLetters: [],
+      usedLetters: [],
       winner: null,
       isSoloMode: roomState.isSoloMode
     };
@@ -85,8 +90,7 @@ export function useGameSocket() {
 
     const { gameState } = roomState;
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const usedLetters = [...gameState.guessedLetters, ...gameState.wrongLetters];
-    const availableLetters = alphabet.split('').filter(letter => !usedLetters.includes(letter));
+    const availableLetters = alphabet.split('').filter(letter => !gameState.usedLetters.includes(letter));
     
     if (availableLetters.length === 0) return;
 
@@ -100,71 +104,56 @@ export function useGameSocket() {
 
     setTimeout(() => {
       makeGuess(computerGuess!);
-    }, 1500); // Delay para simular "pensamento" do computador
+    }, 1500);
   }, [roomState]);
 
   const makeGuess = useCallback((guess: string) => {
     if (!roomState?.gameState) return;
 
     const { gameState } = roomState;
-    const isLetter = guess.length === 1;
+    const letter = guess.toUpperCase();
     
-    if (isLetter) {
-      const letter = guess.toUpperCase();
-      if (gameState.word.includes(letter)) {
-        // Acertou a letra
-        const newHiddenWord = gameState.word
-          .split('')
-          .map(char => gameState.guessedLetters.includes(char) || char === letter ? char : '_')
-          .join('');
-        
-        const newGuessedLetters = [...gameState.guessedLetters, letter];
-        const isComplete = !newHiddenWord.includes('_');
-        
-        setRoomState(prev => prev ? {
-          ...prev,
-          gameState: {
-            ...gameState,
-            hiddenWord: newHiddenWord,
-            guessedLetters: newGuessedLetters,
-            winner: isComplete ? gameState.currentPlayer : null
-          }
-        } : null);
-      } else {
-        // Errou a letra
-        const newCurrentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
-        setRoomState(prev => prev ? {
-          ...prev,
-          gameState: {
-            ...gameState,
-            wrongLetters: [...gameState.wrongLetters, letter],
-            currentPlayer: newCurrentPlayer
-          }
-        } : null);
+    // Verifica se a letra já foi usada
+    if (gameState.usedLetters.includes(letter)) return;
 
-        // Se é modo solo e agora é a vez do computador
-        if (gameState.isSoloMode && newCurrentPlayer === 1) {
-          setTimeout(() => makeComputerMove(), 1000);
-        }
+    // Verifica se a letra existe em alguma das palavras
+    const letterExists = gameState.words.some(word => word.includes(letter));
+    
+    const newUsedLetters = [...gameState.usedLetters, letter];
+    let newRevealedLetters = [...gameState.revealedLetters];
+    let newCurrentPlayer = gameState.currentPlayer;
+    
+    if (letterExists) {
+      // Acertou: adiciona a letra às reveladas e mantém o turno
+      if (!newRevealedLetters.includes(letter)) {
+        newRevealedLetters.push(letter);
       }
     } else {
-      // Tentativa de palavra completa
-      const isCorrect = guess.toUpperCase() === gameState.word;
-      const newCurrentPlayer = isCorrect ? gameState.currentPlayer : (gameState.currentPlayer === 0 ? 1 : 0);
-      
-      setRoomState(prev => prev ? {
-        ...prev,
-        gameState: {
-          ...gameState,
-          winner: isCorrect ? gameState.currentPlayer : null,
-          currentPlayer: newCurrentPlayer
-        }
-      } : null);
+      // Errou: passa a vez
+      newCurrentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
+    }
 
-      // Se é modo solo e agora é a vez do computador
-      if (gameState.isSoloMode && newCurrentPlayer === 1 && !isCorrect) {
-        setTimeout(() => makeComputerMove(), 1000);
+    // Verifica se o jogo terminou (todas as letras foram reveladas)
+    const allLettersRevealed = gameState.words.every(word => 
+      word.split('').every(wordLetter => newRevealedLetters.includes(wordLetter))
+    );
+
+    const winner = allLettersRevealed ? gameState.currentPlayer : null;
+
+    setRoomState(prev => prev ? {
+      ...prev,
+      gameState: {
+        ...gameState,
+        revealedLetters: newRevealedLetters,
+        usedLetters: newUsedLetters,
+        currentPlayer: newCurrentPlayer,
+        winner
       }
+    } : null);
+
+    // Se é modo solo e agora é a vez do computador (e o jogo não terminou)
+    if (gameState.isSoloMode && newCurrentPlayer === 1 && !winner) {
+      setTimeout(() => makeComputerMove(), 1000);
     }
   }, [roomState, makeComputerMove]);
 

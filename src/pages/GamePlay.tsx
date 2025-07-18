@@ -1,11 +1,12 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { Send, RotateCcw, Home, Bot } from "lucide-react";
+import { RotateCcw, Home, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GameHeader } from "@/components/GameHeader";
+import { WordDisplay } from "@/components/WordDisplay";
+import { VirtualKeyboard } from "@/components/VirtualKeyboard";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,9 +15,6 @@ export default function GamePlay() {
   const navigate = useNavigate();
   const location = useLocation();
   const { roomState, playerIndex, makeGuess, resetGame, leaveRoom } = useGameSocket();
-  
-  const [guess, setGuess] = useState("");
-  const [submitting, setSubmitting] = useState(false);
   
   const nickname = location.state?.nickname || '';
   const isHost = location.state?.isHost || false;
@@ -28,34 +26,15 @@ export default function GamePlay() {
   const winner = gameState?.winner;
   const players = roomState?.players || [nickname, isSolo ? 'Computador' : 'Adversário'];
 
-  const handleSubmitGuess = async () => {
-    if (!guess.trim() || submitting || !isMyTurn || isGameOver) return;
-
-    setSubmitting(true);
-    try {
-      makeGuess(guess.trim());
-      setGuess("");
-      
-      if (guess.length === 1) {
-        toast({
-          title: "Letra enviada!",
-          description: `Você tentou a letra: ${guess.toUpperCase()}`
-        });
-      } else {
-        toast({
-          title: "Palavra enviada!",
-          description: `Você tentou a palavra: ${guess.toUpperCase()}`
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível enviar sua tentativa",
-        variant: "destructive"
-      });
-    } finally {
-      setSubmitting(false);
-    }
+  const handleLetterClick = (letter: string) => {
+    if (!isMyTurn || isGameOver) return;
+    
+    makeGuess(letter);
+    
+    toast({
+      title: "Letra enviada!",
+      description: `Você tentou a letra: ${letter}`
+    });
   };
 
   const handleRematch = () => {
@@ -68,12 +47,6 @@ export default function GamePlay() {
   const handleGoHome = () => {
     leaveRoom();
     navigate('/');
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSubmitGuess();
-    }
   };
 
   if (!gameState) {
@@ -110,7 +83,7 @@ export default function GamePlay() {
                   🎉 {winner === playerIndex ? 'Você Venceu!' : `${players[winner!]} Venceu!`}
                 </CardTitle>
                 <CardDescription className="text-purple-200 text-lg">
-                  A palavra era: <strong>{gameState.word}</strong>
+                  As palavras eram: <strong>{gameState.words.join(' - ')}</strong>
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex gap-4 justify-center">
@@ -136,75 +109,45 @@ export default function GamePlay() {
           {/* Word Display */}
           <Card className="bg-slate-800 border-slate-600">
             <CardContent className="py-8">
-              <div className="text-center">
-                <div className="text-4xl md:text-6xl font-mono font-bold text-white tracking-widest mb-4">
-                  {gameState.hiddenWord.split('').join(' ')}
-                </div>
-                <p className="text-slate-400">Adivinhe a palavra!</p>
-              </div>
+              <WordDisplay 
+                words={gameState.words} 
+                revealedLetters={gameState.revealedLetters} 
+              />
             </CardContent>
           </Card>
 
           {/* Game Status */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="bg-slate-800 border-slate-600">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  Turno Atual
-                  {isComputerTurn && <Bot className="w-5 h-5 text-orange-400" />}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`text-lg font-medium p-3 rounded-lg flex items-center gap-2 ${
-                  isMyTurn ? 'bg-green-600 text-white' : isComputerTurn ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'
-                }`}>
-                  {isMyTurn ? '🟢 Sua vez!' : isComputerTurn ? '🤖 Computador pensando...' : `⏳ Vez de ${currentPlayerName}`}
-                </div>
-              </CardContent>
-            </Card>
+          <Card className="bg-slate-800 border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                Turno Atual
+                {isComputerTurn && <Bot className="w-5 h-5 text-orange-400" />}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className={`text-lg font-medium p-3 rounded-lg flex items-center gap-2 ${
+                isMyTurn ? 'bg-green-600 text-white' : isComputerTurn ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'
+              }`}>
+                {isMyTurn ? '🟢 Sua vez!' : isComputerTurn ? '🤖 Computador pensando...' : `⏳ Vez de ${currentPlayerName}`}
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* Virtual Keyboard */}
+          {!isGameOver && (
             <Card className="bg-slate-800 border-slate-600">
               <CardHeader>
-                <CardTitle className="text-white">Progresso</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-slate-300">
-                  <p>Letras corretas: <span className="text-green-400">{gameState.guessedLetters.join(', ') || 'Nenhuma'}</span></p>
-                  <p>Letras erradas: <span className="text-red-400">{gameState.wrongLetters.join(', ') || 'Nenhuma'}</span></p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Input Area */}
-          {!isGameOver && !isComputerTurn && (
-            <Card className="bg-slate-800 border-slate-600">
-              <CardHeader>
-                <CardTitle className="text-white">Sua Tentativa</CardTitle>
+                <CardTitle className="text-white">Teclado Virtual</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Digite uma letra ou tente adivinhar a palavra completa
+                  Clique nas letras para fazer sua tentativa
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder={isMyTurn ? "Digite uma letra ou palavra..." : "Aguarde sua vez..."}
-                    value={guess}
-                    onChange={(e) => setGuess(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={!isMyTurn || submitting}
-                    className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
-                    maxLength={20}
-                  />
-                  <Button
-                    onClick={handleSubmitGuess}
-                    disabled={!guess.trim() || !isMyTurn || submitting}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
+                <VirtualKeyboard
+                  onLetterClick={handleLetterClick}
+                  usedLetters={gameState.usedLetters}
+                  disabled={!isMyTurn || isComputerTurn}
+                />
               </CardContent>
             </Card>
           )}

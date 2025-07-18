@@ -85,6 +85,12 @@ export function useGameSocket() {
     setRoomState(prev => prev ? { ...prev, gameState } : null);
   }, [roomState]);
 
+  const checkGameWon = useCallback((words: string[], revealedLetters: string[]) => {
+    return words.every(word => 
+      word.split('').every(letter => revealedLetters.includes(letter))
+    );
+  }, []);
+
   const makeComputerMove = useCallback(() => {
     if (!roomState?.gameState || !roomState.gameState.isSoloMode) return;
 
@@ -134,11 +140,8 @@ export function useGameSocket() {
     }
 
     // Verifica se o jogo terminou (todas as letras foram reveladas)
-    const allLettersRevealed = gameState.words.every(word => 
-      word.split('').every(wordLetter => newRevealedLetters.includes(wordLetter))
-    );
-
-    const winner = allLettersRevealed ? gameState.currentPlayer : null;
+    const gameWon = checkGameWon(gameState.words, newRevealedLetters);
+    const winner = gameWon ? gameState.currentPlayer : null;
 
     setRoomState(prev => prev ? {
       ...prev,
@@ -154,6 +157,51 @@ export function useGameSocket() {
     // Se é modo solo e agora é a vez do computador (e o jogo não terminou)
     if (gameState.isSoloMode && newCurrentPlayer === 1 && !winner) {
       setTimeout(() => makeComputerMove(), 1000);
+    }
+  }, [roomState, makeComputerMove, checkGameWon]);
+
+  const solveGame = useCallback((guessedWords: string[]) => {
+    if (!roomState?.gameState) return false;
+
+    const { gameState } = roomState;
+    
+    // Normaliza as palavras para comparação (remove espaços e converte para maiúscula)
+    const normalizedGuesses = guessedWords.map(word => word.trim().toUpperCase());
+    const normalizedCorrectWords = gameState.words.map(word => word.toUpperCase());
+    
+    // Verifica se todas as palavras estão corretas
+    const allCorrect = normalizedCorrectWords.every(correctWord => 
+      normalizedGuesses.includes(correctWord)
+    ) && normalizedGuesses.length === normalizedCorrectWords.length;
+
+    if (allCorrect) {
+      // Vitória imediata
+      setRoomState(prev => prev ? {
+        ...prev,
+        gameState: {
+          ...gameState,
+          winner: gameState.currentPlayer,
+          revealedLetters: [...new Set(gameState.words.join('').split(''))]
+        }
+      } : null);
+      return true;
+    } else {
+      // Erro: passa o turno
+      const newCurrentPlayer = gameState.currentPlayer === 0 ? 1 : 0;
+      setRoomState(prev => prev ? {
+        ...prev,
+        gameState: {
+          ...gameState,
+          currentPlayer: newCurrentPlayer
+        }
+      } : null);
+
+      // Se é modo solo e agora é a vez do computador
+      if (gameState.isSoloMode && newCurrentPlayer === 1) {
+        setTimeout(() => makeComputerMove(), 1000);
+      }
+      
+      return false;
     }
   }, [roomState, makeComputerMove]);
 
@@ -185,6 +233,7 @@ export function useGameSocket() {
     joinRoom,
     startGame,
     makeGuess,
+    solveGame,
     resetGame,
     leaveRoom
   };

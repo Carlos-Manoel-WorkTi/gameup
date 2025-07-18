@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { GameHeader } from "@/components/GameHeader";
 import { WordDisplay } from "@/components/WordDisplay";
 import { VirtualKeyboard } from "@/components/VirtualKeyboard";
+import { SolveGameDialog } from "@/components/SolveGameDialog";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { toast } from "@/hooks/use-toast";
 
@@ -14,7 +15,7 @@ export default function GamePlay() {
   const { gameId, roomCode } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { roomState, playerIndex, makeGuess, resetGame, leaveRoom } = useGameSocket();
+  const { roomState, playerIndex, makeGuess, solveGame, resetGame, leaveRoom } = useGameSocket();
   
   const nickname = location.state?.nickname || '';
   const isHost = location.state?.isHost || false;
@@ -31,10 +32,33 @@ export default function GamePlay() {
     
     makeGuess(letter);
     
+    const letterExists = gameState?.words.some(word => word.includes(letter.toUpperCase()));
+    
     toast({
-      title: "Letra enviada!",
-      description: `Você tentou a letra: ${letter}`
+      title: letterExists ? "Acertou!" : "Errou!",
+      description: letterExists 
+        ? `A letra ${letter} existe nas palavras!` 
+        : `A letra ${letter} não existe. Turno passa para o adversário.`
     });
+  };
+
+  const handleSolveGame = (guessedWords: string[]) => {
+    const success = solveGame(guessedWords);
+    
+    if (success) {
+      toast({
+        title: "Parabéns!",
+        description: "Você resolveu o jogo e venceu!"
+      });
+    } else {
+      toast({
+        title: "Resposta incorreta!",
+        description: "Uma ou mais palavras estão erradas. Turno passa para o adversário.",
+        variant: "destructive"
+      });
+    }
+    
+    return success;
   };
 
   const handleRematch = () => {
@@ -116,7 +140,7 @@ export default function GamePlay() {
             </CardContent>
           </Card>
 
-          {/* Game Status */}
+          {/* Game Status and Actions */}
           <Card className="bg-slate-800 border-slate-600">
             <CardHeader>
               <CardTitle className="text-white flex items-center gap-2">
@@ -124,12 +148,22 @@ export default function GamePlay() {
                 {isComputerTurn && <Bot className="w-5 h-5 text-orange-400" />}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className={`text-lg font-medium p-3 rounded-lg flex items-center gap-2 ${
                 isMyTurn ? 'bg-green-600 text-white' : isComputerTurn ? 'bg-orange-600 text-white' : 'bg-slate-700 text-slate-300'
               }`}>
                 {isMyTurn ? '🟢 Sua vez!' : isComputerTurn ? '🤖 Computador pensando...' : `⏳ Vez de ${currentPlayerName}`}
               </div>
+              
+              {/* Solve Game Button */}
+              {!isGameOver && isMyTurn && (
+                <div className="flex justify-center">
+                  <SolveGameDialog 
+                    onSolve={handleSolveGame}
+                    disabled={!isMyTurn || isComputerTurn}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -139,7 +173,7 @@ export default function GamePlay() {
               <CardHeader>
                 <CardTitle className="text-white">Teclado Virtual</CardTitle>
                 <CardDescription className="text-slate-400">
-                  Clique nas letras para fazer sua tentativa
+                  Clique nas letras para fazer sua tentativa ou use o botão "Resolver" para tentar adivinhar todas as palavras
                 </CardDescription>
               </CardHeader>
               <CardContent>

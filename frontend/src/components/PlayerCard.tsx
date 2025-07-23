@@ -8,6 +8,7 @@ interface PlayerCardProps {
   isHost?: boolean;
   isReady?: boolean;
   isComputer?: boolean;
+  
 }
 
 export function PlayerCard({ name, isHost = false, isReady = false, isComputer = false }: PlayerCardProps) {

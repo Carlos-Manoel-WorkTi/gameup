@@ -8,7 +8,11 @@ import { GameHeader } from "@/components/GameHeader";
 import { useUser } from "@/contexts/UserContext";
 import { User, Users } from "lucide-react";
 
+
 export default function JoinRoom() {
+
+
+
   const [roomCode, setRoomCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();

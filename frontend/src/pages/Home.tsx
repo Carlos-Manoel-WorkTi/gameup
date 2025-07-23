@@ -11,7 +11,7 @@ import { useUser } from "@/contexts/UserContext";
 const GAMES = [
   {
     id: 'roda-a-roda',
-    name: 'Roda a Roda Jequiti',
+    name: 'adivinh a palavra',
     description: 'Adivinhe a palavra antes do seu adversário! Versão brasileira do famoso Wheel of Fortune.',
     thumbnail: 'photo-1518709268805-4e9042af2176'
   }

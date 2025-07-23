@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { Copy, Play, Users } from "lucide-react";
@@ -8,28 +7,73 @@ import { GameHeader } from "@/components/GameHeader";
 import { PlayerCard } from "@/components/PlayerCard";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { toast } from "@/hooks/use-toast";
+import { getOrCreatePlayerId } from "@/utils/utils";
 
 export default function Lobby() {
+  const [isReady, setReady] = useState(false);
   const { gameId, roomCode } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { createRoom, joinRoom, startGame, roomState } = useGameSocket();
-  
+
   const nickname = location.state?.nickname || '';
   const isHost = location.state?.isHost || false;
   const isSolo = location.state?.isSolo || false;
-  
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (roomCode && nickname) {
-      if (isHost) {
-        createRoom(nickname, isSolo);
-      } else {
-        joinRoom(roomCode, nickname);
-      }
-    }
-  }, [roomCode, nickname, isHost, isSolo, createRoom, joinRoom]);
+      if (roomState && setPlayerReady) {
+    setPlayerReady(isReady); // passa o valor booleano
+    
+  }
+  }, [isReady]);
+  
+
+  const player = {
+    id: getOrCreatePlayerId(), // Cada jogador tem um ID único
+    name: nickname
+  };
+
+  
+  const {
+    roomState,
+    startGame,
+    leaveRoom,
+    playerIndex,
+    setPlayerReady,
+    isCurrentHost,
+    allReady
+  } = useGameSocket({
+    roomId: roomCode!,
+    player,
+    isSolo
+  });
+
+   // Captura o botão "voltar" do navegador
+  useEffect(() => {
+    const handlePopState = () => {
+      leaveRoom();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [leaveRoom]);
+
+  // (Opcional) Captura fechar/atualizar aba
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      leaveRoom();
+      // sem mensagem customizada, só garante o emit
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [leaveRoom]);
+  
+
+  const players = roomState?.players || [];
+  const [copied, setCopied] = useState(false);
 
   const copyRoomCode = async () => {
     if (roomCode) {
@@ -51,16 +95,26 @@ export default function Lobby() {
   };
 
   const handleBack = () => {
-    navigate(`/game/${gameId}/join`);
+    leaveRoom(); // Opcional: remove da sala ao voltar
+    navigate(-1);   
   };
 
-  const players = roomState?.players || [];
-  const canStart = isSolo || players.length === 2;
+  
+ const canStart = isCurrentHost && (isSolo || (allReady && players.length === 2));
+
+
+  if (!roomState) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <p>Carregando sala...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <GameHeader 
-        title="Roda a Roda Jequiti" 
+        title="Advinha a palavra" 
         showBackButton 
         onBack={handleBack} 
       />
@@ -100,16 +154,17 @@ export default function Lobby() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {players.map((player, index) => (
+                {players.map((p, index) => (
                   <PlayerCard
                     key={index}
-                    name={player}
+                    name={p.name}
                     isHost={index === 0}
-                    isReady={true}
+                    isReady={index === 0 ? true : roomState && roomState.readyStatus && roomState.readyStatus[p.id]}
                     isComputer={isSolo && index === 1}
+
                   />
                 ))}
-                
+
                 {!isSolo && players.length < 2 && (
                   <Card className="bg-slate-700/50 border-slate-600 border-dashed">
                     <CardContent className="flex items-center justify-center h-20">
@@ -122,7 +177,7 @@ export default function Lobby() {
           </Card>
 
           {/* Game Controls */}
-          {isHost && (
+          {isCurrentHost ? (
             <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
@@ -143,7 +198,28 @@ export default function Lobby() {
                 </div>
               </CardContent>
             </Card>
+          ) : (
+            <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <p className="text-slate-400">
+                    Aguardando o host iniciar o jogo...
+                  </p>
+                  <Button
+                    onClick={() => setReady((prev) => !prev)}
+                    className={`${
+                      isReady
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    } text-white font-semibold px-8 py-3 text-lg`}
+                  >
+                    {isReady ? "Cancelar Pronto" : "Estou Pronto"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
+
         </div>
       </main>
     </div>

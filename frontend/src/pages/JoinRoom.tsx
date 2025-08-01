@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GameHeader } from "@/components/GameHeader";
 import { useUser } from "@/contexts/UserContext";
 import { User, Users } from "lucide-react";
+import BackgroundWrapper from "../components/BackgroundWrapper";
 
 
 export default function JoinRoom() {
@@ -44,89 +45,90 @@ export default function JoinRoom() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <GameHeader 
-        title="Roda a Roda Jequiti" 
-        showBackButton 
-        onBack={handleBack}
-      />
-      
-      <main className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Bem-vindo, {user?.nickname}!
-            </h2>
-            <p className="text-slate-400">
-              Escolha como você quer jogar
-            </p>
-          </div>
+     <BackgroundWrapper imageUrl="/adivinha_a_palavra/bg1.png">
+      <div className="">
+        <GameHeader 
+          title="Adivinha a Palavra" 
+          showBackButton 
+          onBack={handleBack}
+          minimal
+        />
+        
+        <main className="container mx-auto px-4 py-1">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold text-white mb-2 bg-s">
+                Escolha como você quer jogar, {user?.nickname}!
+              </h2>
+              
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            {/* Solo Mode */}
-            <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700 hover:border-purple-500 transition-all">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Solo Mode */}
+              <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700 hover:border-purple-500 transition-all">
+                <CardHeader className="text-center">
+                  <User className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                  <CardTitle className="text-white text-xl">Modo Solo</CardTitle>
+                  <p className="text-slate-400 text-sm">Jogue contra o computador</p>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={() => handleCreateRoom(true)}
+                    disabled={isCreating}
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-semibold"
+                  >
+                    {isCreating ? "Iniciando..." : "Jogar Solo"}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Multiplayer Mode */}
+              <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700 hover:border-blue-500 transition-all">
+                <CardHeader className="text-center">
+                  <Users className="w-12 h-12 text-blue-400 mx-auto mb-3" />
+                  <CardTitle className="text-white text-xl">Multiplayer</CardTitle>
+                  <p className="text-slate-400 text-sm">Jogue com amigos online</p>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={() => handleCreateRoom(false)}
+                    disabled={isCreating}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg font-semibold"
+                  >
+                    {isCreating ? "Criando Sala..." : "Criar Sala"}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Join Existing Room */}
+            <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700">
               <CardHeader className="text-center">
-                <User className="w-12 h-12 text-purple-400 mx-auto mb-3" />
-                <CardTitle className="text-white text-xl">Modo Solo</CardTitle>
-                <p className="text-slate-400 text-sm">Jogue contra o computador</p>
+                <CardTitle className="text-white">Entrar em Sala Existente</CardTitle>
+                <p className="text-slate-400 text-sm">Digite o código da sala para participar</p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Código da Sala (6 caracteres)"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                  className="bg-slate-700 border-slate-600 text-white text-center text-lg tracking-widest placeholder-slate-400 focus:border-purple-500"
+                />
                 <Button
-                  onClick={() => handleCreateRoom(true)}
-                  disabled={isCreating}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-semibold"
+                  onClick={handleJoinRoom}
+                  disabled={roomCode.length !== 6}
+                  variant="outline"
+                  className="w-full border-slate-600  hover:bg-slate-700 py-6 text-lg font-semibold"
                 >
-                  {isCreating ? "Iniciando..." : "Jogar Solo"}
+                  Entrar na Sala
                 </Button>
               </CardContent>
             </Card>
-
-            {/* Multiplayer Mode */}
-            <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700 hover:border-blue-500 transition-all">
-              <CardHeader className="text-center">
-                <Users className="w-12 h-12 text-blue-400 mx-auto mb-3" />
-                <CardTitle className="text-white text-xl">Multiplayer</CardTitle>
-                <p className="text-slate-400 text-sm">Jogue com amigos online</p>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  onClick={() => handleCreateRoom(false)}
-                  disabled={isCreating}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg font-semibold"
-                >
-                  {isCreating ? "Criando Sala..." : "Criar Sala"}
-                </Button>
-              </CardContent>
-            </Card>
           </div>
-
-          {/* Join Existing Room */}
-          <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700">
-            <CardHeader className="text-center">
-              <CardTitle className="text-white">Entrar em Sala Existente</CardTitle>
-              <p className="text-slate-400 text-sm">Digite o código da sala para participar</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Input
-                type="text"
-                placeholder="Código da Sala (6 caracteres)"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                className="bg-slate-700 border-slate-600 text-white text-center text-lg tracking-widest placeholder-slate-400 focus:border-purple-500"
-              />
-              <Button
-                onClick={handleJoinRoom}
-                disabled={roomCode.length !== 6}
-                variant="outline"
-                className="w-full border-slate-600 text-white hover:bg-slate-700 py-6 text-lg font-semibold"
-              >
-                Entrar na Sala
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </BackgroundWrapper>
   );
 }

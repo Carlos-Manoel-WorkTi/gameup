@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { UserMenu } from './UserMenu';
@@ -9,7 +8,7 @@ export function Navbar() {
   const { hasProfile } = useUser();
 
   return (
-    <nav className="bg-slate-900/95 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-50">
+    <nav className="bg-gradient-to-b from-black to-transparent backdrop-blur-sm border-b border-[rgb(33,38,45)] sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Button
           variant="ghost"

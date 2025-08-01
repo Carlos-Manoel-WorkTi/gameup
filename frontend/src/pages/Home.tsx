@@ -13,7 +13,8 @@ const GAMES = [
     id: 'roda-a-roda',
     name: 'adivinh a palavra',
     description: 'Adivinhe a palavra antes do seu adversário! Versão brasileira do famoso Wheel of Fortune.',
-    thumbnail: 'photo-1518709268805-4e9042af2176'
+    thumbnail: './../../public/adivinha_a_palavra/capa.png',
+    colorButton: ['#ff0000', '#ffc118']
   }
 ];
 
@@ -37,14 +38,14 @@ export default function Home() {
 
   return (
     <ProfileGuard>
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 ">
         {/* Hero Section */}
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-6xl font-bold text-white mb-4">
             Mini-Games
             <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"> Multiplayer</span>
           </h2>
-          <p className="text-xl text-slate-400 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-slate-300 mb-8 max-w-2xl mx-auto">
             Desafie seus amigos em jogos rápidos e divertidos. Sem cadastro, sem complicação!
           </p>
         </div>
@@ -71,6 +72,7 @@ export default function Home() {
               name={game.name}
               description={game.description}
               thumbnail={game.thumbnail}
+              colorButton={game.colorButton}
               onPlay={() => handlePlayGame(game.id)}
             />
           ))}

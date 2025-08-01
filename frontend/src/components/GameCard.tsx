@@ -7,16 +7,17 @@ interface GameCardProps {
   name: string;
   description: string;
   thumbnail: string;
+  colorButton: string[];
   onPlay: () => void;
 }
 
-export function GameCard({ name, description, thumbnail, onPlay }: GameCardProps) {
+export function GameCard({ name, description, thumbnail, onPlay, colorButton }: GameCardProps) {
   return (
     <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700 hover:border-purple-500 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20 group">
       <CardHeader className="pb-3">
         <div className="aspect-video rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-purple-600 to-blue-600">
           <img 
-            src={`https://images.unsplash.com/${thumbnail}?w=400&h=225&fit=crop`}
+            src={`${thumbnail}`}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
@@ -29,7 +30,11 @@ export function GameCard({ name, description, thumbnail, onPlay }: GameCardProps
       <CardContent>
         <Button 
           onClick={onPlay}
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+          style={{
+            backgroundImage: `linear-gradient(to right, ${colorButton[0]}, ${colorButton[1]}`,          }}
+          className="w-full text-white font-semibold py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 hover:brightness-110"
+
+
         >
           <Play className="w-4 h-4" />
           Jogar Agora

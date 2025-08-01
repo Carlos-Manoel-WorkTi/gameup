@@ -63,6 +63,7 @@ io.on("connection", socket => {
       host:         room.host,
       allReady,
       readyStatus: room.readyStatus,
+      gameState:    room.game
     });
 
     console.log(`Sala ${roomId} readyStatus:`, room.readyStatus);
@@ -96,6 +97,7 @@ io.on("connection", socket => {
       host:         room.host,
       allReady,
       readyStatus: room.readyStatus,
+      gameState:    room.game
     });
 
     console.log(`Sala ${roomId} after leave readyStatus:`, room.readyStatus);
@@ -120,6 +122,7 @@ io.on("connection", socket => {
       host:         room.host,
       allReady,
       readyStatus: room.readyStatus,
+      gameState:    room.game
     });
 
     console.log(`Sala ${roomId} after kick readyStatus:`, room.readyStatus);
@@ -145,7 +148,79 @@ io.on("connection", socket => {
     io.to(roomId).emit("game_updated", { data: game, status: "success" });
   });
 
-  // ===== START GAME =====
+
+
+
+  // ===== PLAYER TURN =====
+  socket.on("make_guess", ({ roomId, playerId, letter }) => {
+  const room = rooms[roomId];
+  if (!room || !room.game) return;
+
+  const game = room.game;
+
+  // Verifica se é a vez do jogador
+  const playerIndex = room.players.findIndex(p => p.id === playerId);
+  if (playerIndex !== game.currentPlayer) return;
+
+  // Letra já usada?
+  if (game.usedLetters.includes(letter.toUpperCase())) return;
+
+  game.usedLetters.push(letter.toUpperCase());
+
+  let found = false;
+
+  for (const word of game.words) {
+    if (word.includes(letter.toUpperCase())) {
+      found = true;
+      break;
+    }
+  }
+
+  if (found) {
+    game.revealedLetters.push(letter.toUpperCase());
+    // Verifica se todas letras estão reveladas
+    const allLetters = game.words.join("").split("");
+    const uniqueLetters = [...new Set(allLetters)];
+    const allRevealed = uniqueLetters.every(l => game.revealedLetters.includes(l));
+
+    if (allRevealed) {
+      game.winner = game.currentPlayer;
+    }
+  } else {
+    // Troca turno
+    game.currentPlayer = (game.currentPlayer + 1) % room.players.length;
+  }
+
+  io.to(roomId).emit("game_updated", { data: game, status: "success" });
+});
+
+socket.on("solve_game", ({ roomId, playerId, guessedWords }) => {
+  const room = rooms[roomId];
+  if (!room || !room.game) return;
+
+  const game = room.game;
+  const playerIndex = room.players.findIndex(p => p.id === playerId);
+  if (playerIndex !== game.currentPlayer) return;
+
+  const normalized = (w: string) => w.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const isCorrect = game.words.every((word: string, idx: string | number) =>
+    normalized(word) === normalized(guessedWords[idx])
+  );
+
+  if (isCorrect) {
+    game.winner = game.currentPlayer;
+  } else {
+    // passa turno
+    game.currentPlayer = (game.currentPlayer + 1) % room.players.length;
+  }
+
+  io.to(roomId).emit("game_updated", { data: game, status: "success" });
+});
+
+
+
+
  // ===== START GAME =====
   socket.on("start_game", ({ roomId }) => {
     const room = rooms[roomId];
@@ -170,10 +245,16 @@ io.on("connection", socket => {
 
     io.to(roomId).emit("game_updated", {
       data: room.game,
+      players: room.players,
       status: "success"
     });
 
     console.log(`🟢 Jogo iniciado na sala ${roomId}`);
+    // avisa que o jogo começou
+    io.to(roomId).emit("game_started", {
+      players: room.players,
+      game: room.game
+    });
   });
 
 
@@ -208,6 +289,7 @@ io.on("connection", socket => {
       host:         room.host,
       allReady,
       readyStatus: room.readyStatus,
+      gameState:    room.game
     });
 
     console.log(`Sala ${roomId} after disconnect readyStatus:`, room.readyStatus);
@@ -215,6 +297,6 @@ io.on("connection", socket => {
 });
 
 const PORT = 3001;
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0" ,() => {
   console.log(`Servidor Socket.IO rodando na porta ${PORT}`);
 });

@@ -5,9 +5,9 @@ import {
   IPlayer,
   SocketClientResponse,
   IRoomState,
-} from "@/types/global";
-import {socket} from "@/utils/socket"; // importa seu socket singleton
-
+} from "../types/global";
+import {socket} from "../utils/socket"; // importa seu socket singleton
+import { useGameStore } from "../stores/useGameStore";
 
 // Simulação do Socket.io para desenvolvimento
 interface UseGameSocketProps {
@@ -25,26 +25,29 @@ interface GameState {
   isSoloMode: boolean;
 }
 
-interface RoomState {
-  allReady: SetStateAction<boolean>;
-  code: string;
-  players: string[];
-  host: number;
-  gameState: GameState | null;
-  isSoloMode: boolean;
-  totalPlayers: number | null;
-  readyStatus?: Record<string, boolean>;
-}
+// interface RoomState {
+//   allReady: SetStateAction<boolean>;
+//   code: string;
+//   players: string[];
+//   host: number;
+//   gameState: GameState | null;
+//   isSoloMode: boolean;
+//   totalPlayers: number | null;
+//   readyStatus?: Record<string, boolean>;
+// }
 
-export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps) {
+export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onGameStart?: () => void) {
   const socketRef = useRef<Socket | null>(null);
   const [roomState, setRoomState] = useState<IRoomState | null>(null);
   const [playerIndex, setPlayerIndex] = useState<number>(0);
-
+  const gameStartedRef = useRef(false);
   const allReady = useMemo(() => {
   return roomState ? Object.values(roomState.readyStatus || {}).every(Boolean) : false;
 }, [roomState]);
 
+  useEffect(() => {
+    useGameStore.getState().setPlayer(player);
+  }, [player]);
 
   // ========== CONEXÃO ==========
   useEffect(() => {
@@ -86,11 +89,22 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps) {
       }
     });
 
-    socket.on("room_state", (data: RoomState) => {
-      setRoomState(data);
-      const index = data.players.findIndex((p) => p.id === player.id);
-      setPlayerIndex(index);
-      console.log("🎯 DADOS", data)
+    // filepath: /home/carlos/Área de trabalho/gameup/frontend/src/hooks/useGameSocket.ts
+    socket.on("room_state", (data: IRoomState) => {
+      setRoomState(prev => {
+        const updated = {
+          ...data,
+              gameState:
+        (data.gameState === undefined || data.gameState === null)
+          ? prev?.gameState ?? null
+          : data.gameState
+        };
+        useGameStore.getState().setRoomState(updated);
+        const index = updated.players.findIndex((p) => p.id === player.id);
+        setPlayerIndex(index);
+        console.log("🎯 DADOS", updated);
+        return updated;
+      });
     });
 
     socket.on("player_joined", (response: SocketClientResponse<IPlayer>) => {
@@ -103,35 +117,95 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps) {
 
     });
 
-    socket.on("game_updated", (response) => {
-        setRoomState(prev => {
-          if (!prev) return prev;       // se ainda não tem sala, ignora
-          return {
-            ...prev,
-            gameState: response.data,   // só atualiza a parte de gameState
+    // socket.off("game_updated");
+    socket.on("game_updated", (response: { data: IGame; players: IPlayer[]; status: string } ) => {
+      const game = response.data;
+      const players = response.players;
+      
+      setRoomState(prev => {
+        console.log("prev", prev);
+        
+           if (!prev) {
+          // Crie um objeto padrão com os campos obrigatórios
+          console.log("Entrando no if de prev");
+          
+          const updated: IRoomState = {
+            code: roomId,
+            players: players,
+            host: 0,
+            isSoloMode: isSolo,
+            totalPlayers: players.length,
+            readyStatus: {},
+            gameState: game
           };
-        });
-      });
+          useGameStore.getState().setRoomState(updated);
+          return updated;
+        }
+        const updated = {
+          ...(prev ?? {}), // mantém o que já existe, ou cria vazio
+          gameState: game
+        };  
+        console.log("Atualizando gameState:", updated);
+        
+        
+        useGameStore.getState().setRoomState(updated);
+        
+        if (game.gameStarted && !gameStartedRef.current) {
+          gameStartedRef.current = true;
+          if (onGameStart) {
+            setTimeout(() => {
+              onGameStart();  
+            }, 0);
+          }
+        }
 
+
+        return updated;
+      });
+    });
+
+
+    socket.on("game_started", (payload) => {
+      setRoomState((prev) => {
+        if (!prev) return null;
+        
+        const updated = {
+          ...prev,
+          players: payload.players,
+          gameState: payload.game,
+        };
+
+        useGameStore.getState().setRoomState(updated);
+        gameStartedRef.current = true;
+
+        if (onGameStart) {
+          setTimeout(() => {
+            onGameStart();
+          }, 0);
+        }
+        console.log("🕹️ Jogo iniciado: gameS", payload.game);
+        return updated;
+      });
+    });
 
     socket.on("player_kicked", (response: SocketClientResponse<string>) => {
       console.log("🚫 Jogador expulso:", response.data);
     });
 
     return () => {
-      // 1) avisa ao servidor que saiu da sala
-      // socket.emit("leave_room", { roomId, player });
+      socket.emit("leave_room", { roomId, player });
 
-      // // 2) remove TODOS os listeners que você adicionou:
-      // socket.off("connect", handleConnect);
-      // socket.off("connect_error");
-      // socket.off("player_ready_update");
-      // socket.off("room_state");
-      // socket.off("player_joined");
-      // socket.off("player_left");
-      // socket.off("game_updated");
-      // socket.off("player_kicked");
+      socket.off("connect", handleConnect);
+      socket.off("connect_error");
+      socket.off("player_ready_update");
+      socket.off("room_state");
+      socket.off("player_joined");
+      socket.off("player_left");
+      socket.off("game_updated");
+      socket.off("game_started");
+      socket.off("player_kicked");
     };
+
   }, []); // ← ESSENCIAL: roda só na montagem
 
   // ========== AÇÕES ==========
@@ -152,33 +226,22 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps) {
   };
 
   const makeGuess = (letter: string) => {
-    socketRef.current?.emit("guess_letter", {
+    socket.emit("make_guess", {
       roomId,
       playerId: player.id,
-      letter,
+      letter
     });
+
   };
 
   const solveGame = (guessedWords: string[]) => {
-    if (!roomState?.gameState) return false;
-
-    const correct =
-      JSON.stringify(guessedWords.map((w) => w.toUpperCase())) ===
-      JSON.stringify(roomState.gameState.words);
-    if (correct) {
-      socketRef.current?.emit("player_won", {
-        roomId,
-        playerId: player.id,
-      });
-    } else {
-      socketRef.current?.emit("player_failed", {
-        roomId,
-        playerId: player.id,
-      });
-    }
-
-    return correct;
+    socket.emit("solve_game", {
+      roomId,
+      playerId: player.id,
+      guessedWords
+    });
   };
+
 
   const resetGame = () => {
     socketRef.current?.emit("reset_game", { roomId });
@@ -218,7 +281,7 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps) {
     startGame,
     setPlayerReady,
     isCurrentHost,
-    allReady,
+    allReady
   };
 }
 

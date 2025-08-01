@@ -1,26 +1,87 @@
-import { useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { RotateCcw, Home, Bot } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { RotateCcw, Home, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GameHeader } from "@/components/GameHeader";
-import { WordDisplay } from "@/components/WordDisplay";
 import { VirtualKeyboard } from "@/components/VirtualKeyboard";
 import { SolveGameDialog } from "@/components/SolveGameDialog";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { toast } from "@/hooks/use-toast";
+import { useGameStore } from "../stores/useGameStore";
+import { clsx } from "clsx";
+import BackgroundWrapper from "../components/BackgroundWrapper";
+
+const MAX_LETTERS = 8;
+
+const WordDisplay = ({
+  words,
+  revealedLetters
+}: {
+  words: string[];
+  revealedLetters: string[];
+}) => {
+  const [highlighted, setHighlighted] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const newHits = revealedLetters.filter((l) => !highlighted[l]);
+    if (newHits.length > 0) {
+      const newHighlighted = { ...highlighted };
+      newHits.forEach((letter) => {
+        newHighlighted[letter] = true;
+        setTimeout(() => {
+          setHighlighted((prev) => ({ ...prev, [letter]: false }));
+        }, 3000);
+      });
+      setHighlighted(newHighlighted);
+    }
+  }, [revealedLetters]);
+
+  return (
+    <div className="space-y-3 px-1 sm:px-4">
+      {words.map((word, wordIndex) => (
+        <div
+          key={wordIndex}
+          className="grid grid-cols-8 gap-1 w-full max-w-full"
+        >
+          {Array.from({ length: MAX_LETTERS }).map((_, i) => {
+            const letter = word[i] ?? "";
+            const isFilled = i < word.length;
+            const upperLetter = letter.toUpperCase();
+            const isRevealed = isFilled && revealedLetters.includes(upperLetter);
+            const isHighlighted = isFilled && highlighted[upperLetter];
+
+            return (
+              <div
+                key={i}
+                className={clsx(
+                  "aspect-square w-full h-auto flex items-center justify-center text-2xl font-bold border border-white/20 transition-all duration-300",
+                  {
+                    "bg-[#3f8bec] text-white": isRevealed && !isHighlighted,
+                    "bg-green-600 text-white animate-pulse": isHighlighted,
+                    "bg-slate-800 text-slate-500": isFilled && !isRevealed,
+                    "bg-slate-700 opacity-10": !isFilled
+                  }
+                )}
+              >
+                {isRevealed ? upperLetter : isFilled ? "_" : ""}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function GamePlay() {
   const { gameId, roomCode } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  const locationState = location.state as { nickname?: string; isHost?: boolean; isSolo?: boolean } || {};
-  const nickname = locationState.nickname || "Jogador";
-  const isSolo = locationState.isSolo || false;
+  const { player, roomState } = useGameStore();
+  const nickname = player?.name ?? "Jogador";
+  const isSolo = roomState?.isSoloMode ?? false;
 
   const {
-    roomState,
     playerIndex,
     makeGuess,
     solveGame,
@@ -28,7 +89,7 @@ export default function GamePlay() {
     leaveRoom
   } = useGameSocket({
     roomId: roomCode!,
-    player: { id: "", name: nickname }, // ID já será atribuído corretamente no hook
+    player: player ?? { id: "", name: nickname },
     isSolo
   });
 
@@ -61,27 +122,20 @@ export default function GamePlay() {
   const handleSolveGame = (guessedWords: string[]) => {
     const success = solveGame(guessedWords);
 
-    if (success) {
-      toast({
-        title: "Parabéns!",
-        description: "Você resolveu o jogo e venceu!"
-      });
-    } else {
-      toast({
-        title: "Resposta incorreta!",
-        description: "Uma ou mais palavras estão erradas. Turno passa para o adversário.",
-        variant: "destructive"
-      });
-    }
+    toast({
+      title: success ? "Parabéns!" : "Resposta incorreta!",
+      description: success
+        ? "Você resolveu o jogo e venceu!"
+        : "Uma ou mais palavras estão erradas. Turno passa para o adversário.",
+      variant: success ? "default" : "destructive"
+    });
 
     return success;
   };
 
   const handleRematch = () => {
     resetGame();
-    navigate(`/game/${gameId}/lobby/${roomCode}`, {
-      state: locationState
-    });
+    navigate(`/game/${gameId}/lobby/${roomCode}`);
   };
 
   const handleGoHome = () => {
@@ -91,31 +145,18 @@ export default function GamePlay() {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <GameHeader title="Carregando..." />
-        <div className="container mx-auto px-4 py-8 text-center">
-          <p className="text-white">Carregando jogo...</p>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <p className="text-white text-xl">Carregando jogo...</p>
       </div>
     );
   }
 
-
-  const gameName = gameId === "roda-a-roda" ? "Roda a Roda Jequiti" : "Jogo";
+  const gameName = "COMIDAS";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <GameHeader
-        title={`${gameName} ${isSolo ? "(Solo)" : ""}`}
-        showBackButton
-        onBack={() =>
-          navigate(`/game/${gameId}/lobby/${roomCode}`, {
-            state: locationState
-          })
-        }
-      />
-
-      <main className="container mx-auto px-4 py-8">
+     <BackgroundWrapper imageUrl="/adivinha_a_palavra/bg2.png">
+    <div className="min-h-screen">
+      <main className="container mx-auto px-0 sm:px-4 py-0 rounded-none">
         <div className="max-w-4xl mx-auto space-y-6">
 
           {isGameOver && (
@@ -129,58 +170,98 @@ export default function GamePlay() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex gap-4 justify-center">
-                <Button
-                  onClick={handleRematch}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Revanche
+                <Button onClick={handleRematch} className="bg-green-600 hover:bg-green-700 text-white">
+                  <RotateCcw className="w-4 h-4 mr-2" /> Revanche
                 </Button>
-                <Button
-                  onClick={handleGoHome}
-                  variant="outline"
-                  className="border-slate-400 text-slate-300 hover:bg-slate-700"
-                >
-                  <Home className="w-4 h-4 mr-2" />
-                  Sair
+                <Button onClick={handleGoHome} variant="outline" className="border-slate-400 text-slate-300 hover:bg-slate-700">
+                  <Home className="w-4 h-4 mr-2" /> Sair
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* Palavras */}
-          <Card className="bg-slate-800 border-slate-600">
-            <CardContent className="py-8">
+          <Card className="bg-[rgba(0,0,0,0.53)] border-slate-600 rounded-none p-0">
+            <CardContent className="py-6">
               <WordDisplay
                 words={gameState.words}
                 revealedLetters={gameState.revealedLetters}
               />
+              <h2 className="mt-6 text-center text-lg sm:text-xl md:text-2xl font-bold tracking-wide">
+                <span className="text-[rgb(156,81,225)]">TEMA:</span>{" "}
+                <span className="text-gray-400">{gameName}</span>
+              </h2>
             </CardContent>
-          </Card>
+            <div className="flex justify-center gap-6">
+                {players.map((p, index) => {
+                  const isCurrent = index === gameState.currentPlayer;
+                  const isComputer = isSolo && index === 1;
 
-          {/* Turno */}
-          <Card className="bg-slate-800 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center gap-2">
-                Turno Atual
-                {isComputerTurn && <Bot className="w-5 h-5 text-orange-400" />}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className={`text-lg font-medium p-3 rounded-lg flex items-center gap-2 ${
-                isMyTurn ? "bg-green-600 text-white" :
-                isComputerTurn ? "bg-orange-600 text-white" :
-                "bg-slate-700 text-slate-300"
-              }`}>
-                {isMyTurn
-                  ? "🟢 Sua vez!"
-                  : isComputerTurn
-                  ? "🤖 Computador pensando..."
-                  : `⏳ Vez de ${currentPlayerName}`}
+                  return (
+                    <div
+                      key={p.id}
+                      className={clsx(
+                        "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+                        isCurrent ? "border-green-500 opacity-100" : "border-slate-500 opacity-50"
+                      )}
+                    >
+                      {isComputer ? (
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                          <Bot className="w-5 h-5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        
+                      )}
+                      
+                    </div>
+                  );
+                })}
+                
               </div>
+          </Card>
+          
+          {/* <Card className="bg-slate-800 border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white">Turno Atual</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-center gap-6">
+                {players.map((p, index) => {
+                  const isCurrent = index === gameState.currentPlayer;
+                  const isComputer = isSolo && index === 1;
 
+                  return (
+                    <div
+                      key={p.id}
+                      className={clsx(
+                        "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+                        isCurrent ? "border-green-500 opacity-100" : "border-slate-500 opacity-50"
+                      )}
+                    >
+                      {isComputer ? (
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                          <Bot className="w-5 h-5 text-white" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-center mt-4 text-slate-200 text-sm">
+                {isComputerTurn
+                  ? "🤖 Computador jogando..."
+                  : isMyTurn
+                  ? "🟢 Sua vez"
+                  : `⏳ Vez de ${currentPlayerName}`}
+              </p>
               {!isGameOver && isMyTurn && (
-                <div className="flex justify-center">
+                <div className="flex justify-center mt-4">
                   <SolveGameDialog
                     onSolve={handleSolveGame}
                     disabled={!isMyTurn || isComputerTurn}
@@ -188,9 +269,8 @@ export default function GamePlay() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card> */}
 
-          {/* Teclado Virtual */}
           {!isGameOver && (
             <Card className="bg-slate-800 border-slate-600">
               <CardHeader>
@@ -211,5 +291,6 @@ export default function GamePlay() {
         </div>
       </main>
     </div>
+    </BackgroundWrapper>
   );
 }

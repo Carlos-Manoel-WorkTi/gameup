@@ -77,9 +77,23 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
     }, [leaveRoom]);
     
 
-    const players = roomState?.players || [];
+   let players = roomState?.players || [];
+
+    if (isSolo && players.length === 1) {
+      players = [
+        ...players,
+        {
+          id: "bot",
+          name: "Bot",
+          isBot: true,
+        }
+      ];
+    }
+
+    
     const [copied, setCopied] = useState(false);
 
+    
     const copyRoomCode = async () => {
       if (roomCode) {
         await navigator.clipboard.writeText(roomCode);
@@ -155,7 +169,7 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Jogadores ({players.length}/2)
+                    Jogadores ({isSolo ? 2 : players.length}/2)
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

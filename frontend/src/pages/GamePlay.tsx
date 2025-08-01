@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { useGameStore } from "../stores/useGameStore";
 import { clsx } from "clsx";
 import BackgroundWrapper from "../components/BackgroundWrapper";
+import { ActionButtons } from "../components/ui/ActionButtons";
 
 const MAX_LETTERS = 8;
 
@@ -79,8 +80,10 @@ export default function GamePlay() {
 
   const { player, roomState } = useGameStore();
   const nickname = player?.name ?? "Jogador";
-  const isSolo = roomState?.isSoloMode ?? false;
-
+  const isSolo = roomState?.totalPlayers === 1;
+  console.log("GamePlay - roomState:", roomState);
+  
+  
   const {
     playerIndex,
     makeGuess,
@@ -94,7 +97,20 @@ export default function GamePlay() {
   });
 
   const gameState = roomState?.gameState;
-  const players = roomState?.players || [];
+  let players = roomState?.players || [];
+
+  
+  if (isSolo && players.length === 1) {
+    players = [
+      ...players,
+      {
+        id: "bot",
+        name: "🤖 Bot",
+        isBot: true,
+      }
+    ];
+  }
+
 
   const isMyTurn = gameState?.currentPlayer === playerIndex;
   const isGameOver = gameState?.winner !== null;
@@ -191,93 +207,60 @@ export default function GamePlay() {
                 <span className="text-gray-400">{gameName}</span>
               </h2>
             </CardContent>
-            <div className="flex justify-center gap-6">
-                {players.map((p, index) => {
-                  const isCurrent = index === gameState.currentPlayer;
-                  const isComputer = isSolo && index === 1;
-
-                  return (
-                    <div
-                      key={p.id}
-                      className={clsx(
-                        "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
-                        isCurrent ? "border-green-500 opacity-100" : "border-slate-500 opacity-50"
-                      )}
-                    >
-                      {isComputer ? (
-                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                          <Bot className="w-5 h-5 text-white" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-white" />
-                        </div>
-                        
-                      )}
-                      
-                    </div>
-                  );
-                })}
-                
-              </div>
-          </Card>
           
-          {/* <Card className="bg-slate-800 border-slate-600">
-            <CardHeader>
-              <CardTitle className="text-white">Turno Atual</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-center gap-6">
-                {players.map((p, index) => {
-                  const isCurrent = index === gameState.currentPlayer;
-                  const isComputer = isSolo && index === 1;
-
-                  return (
-                    <div
-                      key={p.id}
-                      className={clsx(
-                        "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
-                        isCurrent ? "border-green-500 opacity-100" : "border-slate-500 opacity-50"
-                      )}
-                    >
-                      {isComputer ? (
-                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                          <Bot className="w-5 h-5 text-white" />
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-white" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+          </Card>
+          <div className="flex items-center justify-center gap-10 bg-[rgb(13,31,61,0.91)]
+ h-[80px] " style={{margin: '0 auto'}}>
+            {players[0] && (
+              <div
+                className={clsx(
+                  "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+                  gameState.currentPlayer === 0 ? "border-green-500" : "border-slate-500 opacity-50"
+                )}
+              >
+                {players[0].isBot ? (
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                )}
               </div>
-              <p className="text-center mt-4 text-slate-200 text-sm">
-                {isComputerTurn
-                  ? "🤖 Computador jogando..."
-                  : isMyTurn
-                  ? "🟢 Sua vez"
-                  : `⏳ Vez de ${currentPlayerName}`}
-              </p>
-              {!isGameOver && isMyTurn && (
-                <div className="flex justify-center mt-4">
-                  <SolveGameDialog
-                    onSolve={handleSolveGame}
-                    disabled={!isMyTurn || isComputerTurn}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card> */}
+            )}
+
+            <span className="text-white font-bold text-xl">vs</span>
+
+            {players[1] && (
+              <div
+                className={clsx(
+                  "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+                  gameState.currentPlayer === 1 ? "border-green-500" : "border-slate-500 opacity-50"
+                )}
+              >
+                {players[1].isBot ? (
+                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-white" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+
 
           {!isGameOver && (
-            <Card className="bg-slate-800 border-slate-600">
+            <Card className="bg-[rgb(13,31,61,0.91)] border-none rounded-none" style={{ margin: '0 auto' }}>
               <CardHeader>
-                <CardTitle className="text-white">Teclado Virtual</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardTitle className="text-white">Tente acertar a palavra</CardTitle>
+                {/* <CardDescription className="text-slate-400">
                   Clique nas letras para fazer sua tentativa ou use o botão "Resolver"
-                </CardDescription>
+                </CardDescription> */}
               </CardHeader>
               <CardContent>
                 <VirtualKeyboard
@@ -289,6 +272,16 @@ export default function GamePlay() {
             </Card>
           )}
         </div>
+        <ActionButtons
+          onSolve={() => {
+            // abrir dialog de resolução
+          }}
+          onGiveUp={() => {
+            leaveRoom();
+            navigate("/");
+          }}
+        />
+
       </main>
     </div>
     </BackgroundWrapper>

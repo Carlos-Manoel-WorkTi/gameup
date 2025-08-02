@@ -6,10 +6,11 @@
   import { GameHeader } from "@/components/GameHeader";
   import { PlayerCard } from "@/components/PlayerCard";
   import { useGameSocket } from "@/hooks/useGameSocket";
-  import { useGameStore } from "../stores/useGameStore";
+
   import { toast } from "@/hooks/use-toast";
   import { getOrCreatePlayerId } from "@/utils/utils";
 import BackgroundWrapper from "../components/BackgroundWrapper";
+import Loader from "../components/ui/loader";
 
   export default function Lobby() {
     const [isReady, setReady] = useState(false);
@@ -17,10 +18,12 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
     const navigate = useNavigate();
     const location = useLocation();
     // const { roomState, player } = useGameStore();
+    const [showLoader, setShowLoader] = useState(true);
     const nickname = location.state?.nickname || '';
     const isHost = location.state?.isHost || false;
     const isSolo = location.state?.isSolo || false;
-
+    // console.log(`Lobby: gameId=${gameId}, roomCode=${roomCode}, isSolo=${isSolo}, nickname=${nickname}`);
+    
     useEffect(() => {
         if (roomState && setPlayerReady) {
       setPlayerReady(isReady); // passa o valor booleano
@@ -52,29 +55,34 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
       isSolo},handleGoToGame);
 
 
-    // Captura o botão "voltar" do navegador
-    useEffect(() => {
-      const handlePopState = () => {
-        leaveRoom();
-      };
 
-      window.addEventListener("popstate", handlePopState);
-      return () => {
-        window.removeEventListener("popstate", handlePopState);
-      };
-    }, [leaveRoom]);
+useEffect(() => {
+  // Handle PopState and BeforeUnload (seu código atual)
+  const handlePopState = () => {
+    leaveRoom();
+  };
 
-    // (Opcional) Captura fechar/atualizar aba
-    useEffect(() => {
-      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-        leaveRoom();
-        // sem mensagem customizada, só garante o emit
-      };
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      return () => {
-        window.removeEventListener("beforeunload", handleBeforeUnload);
-      };
-    }, [leaveRoom]);
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    leaveRoom();
+  };
+
+  window.addEventListener("popstate", handlePopState);
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
+  // Loader Delay - Apenas na montagem
+  const timeout = setTimeout(() => {
+    setShowLoader(false);
+  }, 2000); // Exibe o loader por no mínimo 1s
+
+  // Cleanup function
+  return () => {
+    clearTimeout(timeout);
+    window.removeEventListener("popstate", handlePopState);
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+  };
+}, [leaveRoom]);
+
+
     
 
    let players = roomState?.players || [];
@@ -107,6 +115,7 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
     };
 
     const handleStartGame = () => {
+
       startGame();
     };
 
@@ -121,13 +130,8 @@ import BackgroundWrapper from "../components/BackgroundWrapper";
   const canStart = isCurrentHost && (isSolo || (allReady && players.length === 2));
 
 
-    if (!roomState) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-          <p>Carregando sala...</p>
-        </div>
-      );
-    }
+    if (showLoader || !roomState) return <Loader/>
+    
 
     return (
        <BackgroundWrapper imageUrl="/adivinha_a_palavra/bg1.png">

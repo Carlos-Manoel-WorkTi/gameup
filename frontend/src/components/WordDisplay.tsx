@@ -1,33 +1,66 @@
+import clsx from "clsx";
+import { useEffect, useState } from "react";
 
-interface WordDisplayProps {
+const WordDisplay = ({
+  words,
+  revealedLetters,
+  maxLetters = 8,
+}: {
   words: string[];
   revealedLetters: string[];
-}
+  maxLetters?: number;
+}) => {
+  const [highlighted, setHighlighted] = useState<Record<string, boolean>>({});
 
-export function WordDisplay({ words, revealedLetters }: WordDisplayProps) {
-  const renderWord = (word: string, wordIndex: number) => {
-    return word.split('').map((letter, letterIndex) => {
-      const isRevealed = revealedLetters.includes(letter.toUpperCase());
-      return (
-        <div
-          key={`${wordIndex}-${letterIndex}`}
-          className="w-12 h-12 md:w-16 md:h-16 border-2 border-slate-600 bg-slate-800 flex items-center justify-center rounded-lg"
-        >
-          <span className="text-xl md:text-2xl font-bold text-white">
-            {isRevealed ? letter.toUpperCase() : '_'}
-          </span>
-        </div>
-      );
-    });
-  };
+  useEffect(() => {
+    const newHits = revealedLetters.filter((l) => !highlighted[l]);
+    if (newHits.length > 0) {
+      const newHighlighted = { ...highlighted };
+      newHits.forEach((letter) => {
+        newHighlighted[letter] = true;
+        setTimeout(() => {
+          setHighlighted((prev) => ({ ...prev, [letter]: false }));
+        }, 3000);
+      });
+      setHighlighted(newHighlighted);
+    }
+  }, [highlighted, revealedLetters]);
 
   return (
-    <div className="flex flex-col items-center space-y-4">
-      {words.map((word, index) => (
-        <div key={index} className="flex gap-2">
-          {renderWord(word, index)}
+    <div className="space-y-3 px-1 sm:px-4">
+      {words.map((word, wordIndex) => (
+        <div
+          key={wordIndex}
+          className="grid grid-cols-8 gap-1 w-full max-w-full"
+        >
+          {Array.from({ length: maxLetters }).map((_, i) => {
+            const letter = word[i] ?? "";
+            const isFilled = i < word.length;
+            const upperLetter = letter.toUpperCase();
+            const isRevealed = isFilled && revealedLetters.includes(upperLetter);
+            const isHighlighted = isFilled && highlighted[upperLetter];
+
+            return (
+              <div
+                key={i}
+                className={clsx(
+                  "aspect-square w-full h-auto flex items-center justify-center text-2xl font-bold border border-white/20 transition-all duration-300",
+                  {
+                    "bg-[#3f8bec] text-white": isRevealed && !isHighlighted,
+                    "bg-green-600 text-white animate-pulse": isHighlighted,
+                    "bg-slate-800 text-slate-500": isFilled && !isRevealed,
+                    "bg-slate-700 opacity-10": !isFilled
+                  }
+                )}
+              >
+                {isRevealed ? upperLetter : isFilled ? "_" : ""}
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
   );
-}
+};
+
+export default WordDisplay;

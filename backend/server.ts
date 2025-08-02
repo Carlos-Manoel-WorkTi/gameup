@@ -28,46 +28,58 @@ io.on("connection", socket => {
   console.log("Novo cliente conectado:", socket.id);
 
   // ===== JOIN ROOM =====
-  socket.on("join_room", ({ roomId, player }) => {
-    socket.join(roomId);
-    socket.data.roomId = roomId;
-    socket.data.player  = player;
+socket.on("join_room", ({ roomId, player }) => {
+  socket.join(roomId);
+  socket.data.roomId = roomId;
+  socket.data.player = player;
 
-    let room = rooms[roomId];
+  let room = rooms[roomId];
 
-    if (!room) {
-      // Sala nova: o primeiro a entrar é o host e já vem pronto
-      room = rooms[roomId] = {
-        players:      [player],
-        game:         null,
-        host:         0,
-        readyStatus: { [player.id]: true },
-      };
-    } else {
-      // Sala existente: adiciona convidado (não pronto)
-      const exists = room.players.some(p => p.id === player.id);
-      if (!exists) {
-        room.players.push(player);
-        room.readyStatus[player.id] = false;
-      }
+  if (!room) {
+    // Sala nova: o primeiro a entrar é o host e já vem pronto
+    room = rooms[roomId] = {
+      players: [player],
+      game: null,
+      host: 0,
+   
+      readyStatus: { [player.id]: true },
+    };
+  } else {
+    // Sala existente: adiciona convidado (não pronto)
+    const exists = room.players.some(p => p.id === player.id);
+    if (!exists) {
+      room.players.push(player);
+      room.readyStatus[player.id] = false;
     }
+  }
 
-    // Avisa que entrou
-    io.to(roomId).emit("player_joined", { data: player, status: "success" });
+  // Avisa que entrou
+  io.to(roomId).emit("player_joined", { data: player, status: "success" });
 
-    // Emite estado completo
-    const allReady = Object.values(room.readyStatus).every(Boolean);
-    io.to(roomId).emit("room_state", {
-      players:     room.players,
-      totalPlayers: room.players.length,
-      host:         room.host,
-      allReady,
-      readyStatus: room.readyStatus,
-      gameState:    room.game
-    });
-
-    console.log(`Sala ${roomId} readyStatus:`, room.readyStatus);
+  const allReady = Object.values(room.readyStatus).every(Boolean);
+  
+  // Emite para TODOS da sala (atualização geral)
+  io.to(roomId).emit("room_state", {
+    players: room.players,
+    totalPlayers: room.players.length,
+    host: room.host,
+    allReady,
+    readyStatus: room.readyStatus,
+    gameState: room.game
   });
+
+  // Emite APENAS para o jogador que acabou de entrar (recarregar estado após refresh)
+  socket.emit("room_state", {
+    players: room.players,
+    totalPlayers: room.players.length,
+    host: room.host,
+    allReady,
+    readyStatus: room.readyStatus,
+    gameState: room.game
+  });
+
+  console.log(`Sala ${roomId} readyStatus:`, room.readyStatus);
+});
 
   // ===== LEAVE ROOM =====
   socket.on("leave_room", ({ roomId, player }) => {

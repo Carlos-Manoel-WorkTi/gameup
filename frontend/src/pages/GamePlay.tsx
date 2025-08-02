@@ -11,68 +11,13 @@ import { useGameStore } from "../stores/useGameStore";
 import { clsx } from "clsx";
 import BackgroundWrapper from "../components/BackgroundWrapper";
 import { ActionButtons } from "../components/ui/ActionButtons";
+import WordDisplay from "../components/WordDisplay";
+import { useTurnTimer } from "@/hooks/useTurnTimer";
+import { TimerDisplay } from "@/components/TimerDisplay";
 
 const MAX_LETTERS = 8;
 
-const WordDisplay = ({
-  words,
-  revealedLetters
-}: {
-  words: string[];
-  revealedLetters: string[];
-}) => {
-  const [highlighted, setHighlighted] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
-    const newHits = revealedLetters.filter((l) => !highlighted[l]);
-    if (newHits.length > 0) {
-      const newHighlighted = { ...highlighted };
-      newHits.forEach((letter) => {
-        newHighlighted[letter] = true;
-        setTimeout(() => {
-          setHighlighted((prev) => ({ ...prev, [letter]: false }));
-        }, 3000);
-      });
-      setHighlighted(newHighlighted);
-    }
-  }, [revealedLetters]);
-
-  return (
-    <div className="space-y-3 px-1 sm:px-4">
-      {words.map((word, wordIndex) => (
-        <div
-          key={wordIndex}
-          className="grid grid-cols-8 gap-1 w-full max-w-full"
-        >
-          {Array.from({ length: MAX_LETTERS }).map((_, i) => {
-            const letter = word[i] ?? "";
-            const isFilled = i < word.length;
-            const upperLetter = letter.toUpperCase();
-            const isRevealed = isFilled && revealedLetters.includes(upperLetter);
-            const isHighlighted = isFilled && highlighted[upperLetter];
-
-            return (
-              <div
-                key={i}
-                className={clsx(
-                  "aspect-square w-full h-auto flex items-center justify-center text-2xl font-bold border border-white/20 transition-all duration-300",
-                  {
-                    "bg-[#3f8bec] text-white": isRevealed && !isHighlighted,
-                    "bg-green-600 text-white animate-pulse": isHighlighted,
-                    "bg-slate-800 text-slate-500": isFilled && !isRevealed,
-                    "bg-slate-700 opacity-10": !isFilled
-                  }
-                )}
-              >
-                {isRevealed ? upperLetter : isFilled ? "_" : ""}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-};
 
 export default function GamePlay() {
   const { gameId, roomCode } = useParams();
@@ -117,6 +62,24 @@ export default function GamePlay() {
   const winner = gameState?.winner;
   const currentPlayerName = players[gameState?.currentPlayer ?? 0]?.name || "Jogador";
   const isComputerTurn = isSolo && gameState?.currentPlayer === 1;
+
+  const timerPlayer0 = useTurnTimer({
+  currentPlayer: gameState.currentPlayer,
+  activePlayer: 0,
+  onTimeout: () => {
+    console.log("Player 0 timeout");
+    // Aqui você vai emitir pro backend (ou localmente passar o turno)
+  }
+});
+
+const timerPlayer1 = useTurnTimer({
+  currentPlayer: gameState.currentPlayer,
+  activePlayer: 1,
+  onTimeout: () => {
+    console.log("Player 1 timeout");
+    // Backend ou lógica de passar turno
+  }
+});
 
   const handleLetterClick = (letter: string) => {
     if (!isMyTurn || isGameOver) return;
@@ -196,11 +159,34 @@ export default function GamePlay() {
             </Card>
           )}
 
-          <Card className="bg-[rgba(0,0,0,0.53)] border-slate-600 rounded-none p-0">
-            <CardContent className="py-6">
-              <WordDisplay
+
+          <Card className="bg-[rgba(0,0,0,0.53)] border-none rounded-none p-0 " style={{ margin: '0 auto' }}>
+            <CardContent className="py-2 flex flex-row items-center justify-between gap-4 flex-wrap px-3">
+                <img
+                  src="/adivinha_a_palavra/header.png"
+                  alt="Header"
+                  className="max-h-16 object-contain"
+                />
+                <h1 className="text-4xl font-bold text-transparent  bg-center"
+                >
+                  <a href="/"> <img
+                  src="/logo.png"
+                  alt="Header"
+                  className="max-h-16 object-contain"
+                /></a>
+                
+                </h1>
+              </CardContent>
+            <CardContent   
+            className={clsx(
+          "p-0 pb-4 pt-2 bg-[linear-gradient(to_top,_#1e2539_1%,_transparent_100%)]",
+          
+              )}
+              >
+                          <WordDisplay
                 words={gameState.words}
                 revealedLetters={gameState.revealedLetters}
+                maxLetters={MAX_LETTERS}
               />
               <h2 className="mt-6 text-center text-lg sm:text-xl md:text-2xl font-bold tracking-wide">
                 <span className="text-[rgb(156,81,225)]">TEMA:</span>{" "}
@@ -209,48 +195,164 @@ export default function GamePlay() {
             </CardContent>
           
           </Card>
-          <div className="flex items-center justify-center gap-10 bg-[rgb(13,31,61,0.91)]
- h-[80px] " style={{margin: '0 auto'}}>
-            {players[0] && (
-              <div
-                className={clsx(
-                  "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
-                  gameState.currentPlayer === 0 ? "border-green-500" : "border-slate-500 opacity-50"
-                )}
-              >
-                {players[0].isBot ? (
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                )}
-              </div>
-            )}
+<div
+  className="relative flex items-center justify-center gap-10 bg-[rgb(13,31,61,0.91)] h-[120px]"
+  style={{ margin: "0 auto" }}
+>
+  {/* LINHA HORIZONTAL - JOGADOR 0 (esquerda) */}
+  <div
+    className={clsx(
+      "absolute top-[-2px] left-0 h-[3px] transition-all duration-300",
+      gameState.currentPlayer === 0
+        ? "bg-green-500 opacity-100"
+        : "bg-slate-500 opacity-40"
+    )}
+    style={{ width: "calc(50% - 88px)" }}
+  />
 
-            <span className="text-white font-bold text-xl">vs</span>
+  {/* LINHA HORIZONTAL - JOGADOR 1 (direita) */}
+  <div
+    className={clsx(
+      "absolute top-[-2px] right-0 h-[3px] transition-all duration-300",
+      gameState.currentPlayer === 1
+        ? "bg-green-500 opacity-100"
+        : "bg-slate-500 opacity-40"
+    )}
+    style={{ width: "calc(50% - 91px)" }}
+  />
 
-            {players[1] && (
-              <div
-                className={clsx(
-                  "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
-                  gameState.currentPlayer === 1 ? "border-green-500" : "border-slate-500 opacity-50"
-                )}
-              >
-                {players[1].isBot ? (
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                )}
-              </div>
+  {/* PLAYER 0 */}
+  {players[0] && (
+    <div className="relative flex flex-col items-center">
+      <div className="flex items-center gap-2">
+        {/* Timer do Jogador 0 (lado externo esquerdo) */}
+        <div className="absolute" style={{right: "calc(21vw)"  }}>
+          <TimerDisplay
+            timeLeft={timerPlayer0}
+            isActive={gameState.currentPlayer === 0}
+          />
+        </div>
+
+        {/* Avatar do Jogador 0 */}
+        <div
+          className={clsx(
+            "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+            gameState.currentPlayer === 0
+              ? "border-green-500"
+              : "border-slate-500 opacity-50"
+          )}
+        >
+          {/* LINHA VERTICAL ACIMA DO JOGADOR 0 */}
+          <div
+            className={clsx(
+              "absolute left-1/2 w-[3px] transition-all duration-300",
+              gameState.currentPlayer === 0
+                ? "bg-green-500 opacity-100"
+                : "bg-slate-500 opacity-50"
             )}
-          </div>
+            style={{
+              left: "50%",
+              top: "-22px",
+              height: "18px",
+            }}
+          />
+
+          {/* ÍCONE DO JOGADOR 0 */}
+          {players[0].isBot ? (
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Nome do Jogador 0 */}
+      <span
+        className={clsx(
+          "mt-1 text-sm font-semibold",
+          gameState.currentPlayer === 0 ? "text-green-400" : "text-slate-300"
+        )}
+      >
+        {players[0].name}
+      </span>
+    </div>
+  )}
+
+  {/* CENTRO - TEXTO "VS" E LINHA */}
+  <div className="relative flex items-center justify-center h-20">
+    <span className="text-white font-bold text-xl z-10 px-2 bg-[#e36922f6] rounded">
+      vs
+    </span>
+    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-slate-500 opacity-50" />
+  </div>
+
+  {/* PLAYER 1 */}
+  {players[1] && (
+    <div className="relative flex flex-col items-center">
+      <div className="flex items-center gap-2">
+        {/* Avatar do Jogador 1 */}
+        <div
+          className={clsx(
+            "relative w-16 h-16 rounded-full border-4 flex items-center justify-center transition-all",
+            gameState.currentPlayer === 1
+              ? "border-green-500"
+              : "border-slate-500 opacity-50"
+          )}
+        >
+          {/* LINHA VERTICAL ACIMA DO JOGADOR 1 */}
+          <div
+            className={clsx(
+              "absolute left-1/2 w-[3px] transition-all duration-300",
+              gameState.currentPlayer === 1
+                ? "bg-green-500 opacity-100"
+                : "bg-slate-500 opacity-50"
+            )}
+            style={{
+              left: "50%",
+              top: "-22px",
+              height: "18px",
+            }}
+          />
+
+          {/* ÍCONE DO JOGADOR 1 */}
+          {players[1].isBot ? (
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
+            </div>
+          )}
+        </div>
+
+        {/* Timer do Jogador 1 (lado externo direito) */}
+        <div className="absolute w-10" style={{left: "calc(21vw)"  }}>
+          <TimerDisplay
+            timeLeft={timerPlayer1}
+            isActive={gameState.currentPlayer === 1}
+          />
+        </div>
+      </div>
+
+      {/* Nome do Jogador 1 */}
+      <span
+        className={clsx(
+          "mt-1 text-sm font-semibold",
+          gameState.currentPlayer === 1 ? "text-green-400" : "text-slate-300"
+        )}
+      >
+        {players[1].name}
+      </span>
+    </div>
+  )}
+</div>
+
+
 
 
 

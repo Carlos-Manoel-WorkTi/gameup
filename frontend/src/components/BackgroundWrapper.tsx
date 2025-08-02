@@ -19,7 +19,7 @@ const BackgroundWrapper: React.FC<BackgroundWrapperProps> = ({
       />
 
       {/* Gradiente escuro sobre a imagem */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/50 to-black" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-slate-900" />
 
       {/* Conteúdo */}
       <div className="relative z-10">{children}</div>

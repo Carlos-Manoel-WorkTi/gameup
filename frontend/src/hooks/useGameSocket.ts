@@ -47,13 +47,15 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
 
   useEffect(() => {
     useGameStore.getState().setPlayer(player);
+    
   }, [player]);
 
   // ========== CONEXÃO ==========
   useEffect(() => {
     if (!socket.connected) {
-      console.error("SOCKET_URL não está definido");
-      return;
+      console.error("SOCKET foi desconectado, tentando reconectar...");
+      // handleConnect()
+      // return;
     }
     
 
@@ -65,6 +67,7 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
     });
     socket.on("connect", () => {
       socket.emit("join_room", { roomId, player });
+      handleConnect();
     });
 
   // se já estiver conectado, chama manualmente
@@ -102,7 +105,11 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
         useGameStore.getState().setRoomState(updated);
         const index = updated.players.findIndex((p) => p.id === player.id);
         setPlayerIndex(index);
-        console.log("🎯 DADOS", updated);
+        console.log("Players na sala:", updated.players);
+        console.log("Meu ID:", player.id);
+        console.log("Index encontrado:", index);
+
+    
         return updated;
       });
     });
@@ -210,12 +217,25 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
 
   // ========== AÇÕES ==========
 
-  function handleConnect() {
-  console.log("✅ Conectado! Socket ID:", socket.id);
-  if (roomId && player.id) {
-    socket.emit("join_room", { roomId, player });
-  }
+function handleConnect() {
+  if (!socket.connected) return; // Não faz nada se não estiver conectado ainda
+  console.log("🔗 Entrando na sala:", roomId, "com jogador:", player);
+
+  socket.emit("join_room", { roomId, player });
+
+  setRoomState({
+    code: roomId,
+    players: [player],
+    host: 0,
+    gameState: null,
+    isSoloMode: isSolo,
+    totalPlayers: 1,
+    readyStatus: { [player.id]: false },
+  });
+
+  console.log("👤 Jogador:", player);
 }
+
 
   const setPlayerReady = (ready: boolean) => {
     socketRef.current?.emit("player_ready", {

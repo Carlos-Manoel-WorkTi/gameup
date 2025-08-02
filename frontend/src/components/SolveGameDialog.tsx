@@ -54,7 +54,7 @@ export function SolveGameDialog({ onSolve, disabled }: SolveGameDialogProps) {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-500"
+          className="bg-green-600 hover:bg-green-700 text-white border-green-500"
           disabled={disabled}
         >
           <Lightbulb className="w-4 h-4 mr-2" />

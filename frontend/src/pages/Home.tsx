@@ -10,7 +10,7 @@ import { useUser } from "@/contexts/UserContext";
 
 const GAMES = [
   {
-    id: 'roda-a-roda',
+    id: 'adivinha-a-palavra',
     name: 'adivinh a palavra',
     description: 'Adivinhe a palavra antes do seu adversário! Versão brasileira do famoso Wheel of Fortune.',
     thumbnail: './../../public/adivinha_a_palavra/capa.png',

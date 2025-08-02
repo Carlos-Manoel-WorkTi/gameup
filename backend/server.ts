@@ -18,7 +18,7 @@ interface Room {
   players: any[];                  // lista de jogadores
   game: any;                       // estado do jogo (opcional)
   readyStatus: Record<string, boolean>; // mapa player.id → pronto?
-  host: number;                    // índice do host em players[]
+  hostId: number;                    // índice do host em players[]
 }
 
 // Armazena salas em memória
@@ -40,8 +40,7 @@ socket.on("join_room", ({ roomId, player }) => {
     room = rooms[roomId] = {
       players: [player],
       game: null,
-      host: 0,
-   
+      hostId: player.id,
       readyStatus: { [player.id]: true },
     };
   } else {
@@ -62,7 +61,7 @@ socket.on("join_room", ({ roomId, player }) => {
   io.to(roomId).emit("room_state", {
     players: room.players,
     totalPlayers: room.players.length,
-    host: room.host,
+    hostId: room.hostId,
     allReady,
     readyStatus: room.readyStatus,
     gameState: room.game
@@ -72,7 +71,7 @@ socket.on("join_room", ({ roomId, player }) => {
   socket.emit("room_state", {
     players: room.players,
     totalPlayers: room.players.length,
-    host: room.host,
+    hostId: room.hostId,
     allReady,
     readyStatus: room.readyStatus,
     gameState: room.game
@@ -94,22 +93,22 @@ socket.on("join_room", ({ roomId, player }) => {
     socket.leave(roomId);
 
     // Recalcula host se for preciso
-    if (room.host === idx) {
-      room.host = 0;
-    } else if (room.host > idx) {
-      room.host--;
-    }
+    // if (room.host === idx) {
+    //   room.host = 0;
+    // } else if (room.host > idx) {
+    //   room.host--;
+    // }
 
     io.to(roomId).emit("player_left", { data: player, status: "success" });
 
     const allReady = Object.values(room.readyStatus).every(Boolean);
     io.to(roomId).emit("room_state", {
-      players:     room.players,
-      totalPlayers: room.players.length,
-      host:         room.host,
+      players:room.players,
+      totalPlayers:room.players.length,
+      hostId:room.hostId,
       allReady,
       readyStatus: room.readyStatus,
-      gameState:    room.game
+      gameState:room.game
     });
 
     console.log(`Sala ${roomId} after leave readyStatus:`, room.readyStatus);
@@ -125,16 +124,16 @@ socket.on("join_room", ({ roomId, player }) => {
     io.to(roomId).emit("player_kicked", { data: playerId, status: "success" });
 
     // Ajusta host se necessário
-    if (room.host >= room.players.length) room.host = 0;
+    // if (room.host >= room.players.length) room.host = 0;
 
     const allReady = Object.values(room.readyStatus).every(Boolean);
     io.to(roomId).emit("room_state", {
-      players:     room.players,
+      players: room.players,
       totalPlayers: room.players.length,
-      host:         room.host,
+      hostId:room.hostId,
       allReady,
       readyStatus: room.readyStatus,
-      gameState:    room.game
+      gameState:room.game
     });
 
     console.log(`Sala ${roomId} after kick readyStatus:`, room.readyStatus);
@@ -286,11 +285,11 @@ socket.on("solve_game", ({ roomId, playerId, guessedWords }) => {
     }
 
     // Recalcula host
-    if (room.host === idx) {
-      room.host = 0;
-    } else if (room.host > idx) {
-      room.host--;
-    }
+    // if (room.host === idx) {
+    //   room.host = 0;
+    // } else if (room.host > idx) {
+    //   room.host--;
+    // }
 
     io.to(roomId).emit("player_left", { data: player, status: "disconnected" });
 
@@ -298,7 +297,7 @@ socket.on("solve_game", ({ roomId, playerId, guessedWords }) => {
     io.to(roomId).emit("room_state", {
       players:     room.players,
       totalPlayers: room.players.length,
-      host:         room.host,
+          hostId: room.hostId,
       allReady,
       readyStatus: room.readyStatus,
       gameState:    room.game

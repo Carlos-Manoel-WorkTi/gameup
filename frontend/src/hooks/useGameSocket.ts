@@ -107,7 +107,7 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
         setPlayerIndex(index);
         console.log("Players na sala:", updated.players);
         console.log("Meu ID:", player.id);
-        console.log("Index encontrado:", index);
+       
 
     
         return updated;
@@ -139,7 +139,7 @@ export function useGameSocket({ roomId, player, isSolo }: UseGameSocketProps,onG
           const updated: IRoomState = {
             code: roomId,
             players: players,
-            host: 0,
+            hostId: player.id,
             isSoloMode: isSolo,
             totalPlayers: players.length,
             readyStatus: {},
@@ -226,7 +226,7 @@ function handleConnect() {
   setRoomState({
     code: roomId,
     players: [player],
-    host: 0,
+    hostId: player.id,
     gameState: null,
     isSoloMode: isSolo,
     totalPlayers: 1,
@@ -278,11 +278,9 @@ function handleConnect() {
 
   // ========== DEFINIÇÃO DE INFORMAÇÂO DO JOGADOR ==========
   const isCurrentHost = useMemo(() => {
-    return (
-      roomState?.players[playerIndex]?.id ===
-      roomState?.players[roomState.host]?.id
-    );
-  }, [roomState, playerIndex]);
+    return roomState?.hostId === player.id;
+  }, [roomState?.hostId, player.id]);
+
 
   // ========== IDENTIFICADOR DO JOGADOR ==========
   useEffect(() => {

@@ -16,7 +16,7 @@ export interface IGame {
 export interface IRoomState {
   code: string;
   players: IPlayer[];
-  host: number;
+  hostId: string;
   gameState: IGame | null;
   isSoloMode: boolean;
   totalPlayers: number | null;
@@ -27,3 +27,4 @@ export interface SocketClientResponse<T> {
   data: T;
   status: "success" | "error";
 }
+  
